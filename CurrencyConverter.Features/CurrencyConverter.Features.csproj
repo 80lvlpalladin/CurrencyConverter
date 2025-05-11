@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    
+    <ItemGroup>
+        <PackageReference Include="ErrorOr"/>
+        <PackageReference Include="MediatR" />
+        <PackageReference Include="Microsoft.Extensions.Options" />
+
+        <PackageReference Include="FluentValidation" />
+
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    </ItemGroup>
+    
+    <ItemGroup>
+      <ProjectReference Include="..\CurrencyConverter.Domain\CurrencyConverter.Domain.csproj" />
+    </ItemGroup>
+</Project>

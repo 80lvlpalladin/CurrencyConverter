@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <Sdk Name="Aspire.AppHost.Sdk" Version="9.1.0"/>
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <IsAspireHost>true</IsAspireHost>
+        <UserSecretsId>b7cf09f0-d766-416b-9eda-3597db955594</UserSecretsId>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Aspire.Hosting.AppHost"/>
+      <PackageReference Include="Aspire.Hosting.Redis" />
+        <PackageReference Include="Refit" />
+
+      <ProjectReference Include="..\CurrencyConverter.Api\CurrencyConverter.Api.csproj" IsAspireProjectResource="true"/>
+      <ProjectReference Include="..\CurrencyConverter.Api\CurrencyConverter.Api.csproj" IsAspireProjectResource="false"/>
+    </ItemGroup>
+
+</Project>
