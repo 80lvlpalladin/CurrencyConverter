@@ -33,7 +33,6 @@ For more info see the [.NET Aspire documentation](https://learn.microsoft.com/en
 git clone https://github.com/80lvlpalladin/CurrencyConverter.git
 cd CurrencyConverter
 ```
-_(Update the URL as appropriate for your source repository)_
 ### 2. Restore Dependencies
 ``` shell
 dotnet restore
@@ -43,10 +42,10 @@ dotnet restore
 dotnet build
 ```
 ### 4. Run the Solution using Aspire AppHost
-The solution is orchestrated via **Aspire AppHost** (usually found in a project named or similar inside your repo). `CurrencyConverter.AppHost`
+The solution is orchestrated via **Aspire AppHost**. `CurrencyConverter.AppHost`
 From the solution root, run:
 ``` shell
 dotnet run --project [solutionFolder]/CurrencyConverter.AppHost
 ```
-- The Aspire dashboard will open in your browser, showing all available services and endpoints.
+- The Aspire dashboard will open in your browser, showing all available services and endpoints, logs, metrics and traces.
 - The **API endpoints** will start automatically as part of the AppHost startup.
