@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
+using static System.String;
 
 namespace CurrencyConverter.Domain;
 
@@ -14,11 +15,12 @@ public class ExchangeRateProviderFactory
         ILogger<ExchangeRateProviderFactory> logger)
     {
         _logger = logger;
-        //TODO test if this will work with multiple registered providers
         foreach (var exchangeRateProvider in exchangeRateProviders)
         {
             _exchangeRateProviderRegistry.Add(exchangeRateProvider.Id, exchangeRateProvider);
         }
+        _logger.LogInformation(
+            "Registered exchange rate providers: {Providers}", Join(", ", _exchangeRateProviderRegistry.Keys));
     }
 
     public IExchangeRateProvider GetProvider(string? providerId)

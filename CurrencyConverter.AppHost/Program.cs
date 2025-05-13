@@ -1,4 +1,5 @@
 using CurrencyConverter.Api;
+using CurrencyConverter.Api.Application;
 
 var builder = DistributedApplication.CreateBuilder(args);
 

@@ -8,7 +8,6 @@ public class FrankfurterApiOptions
 {
     public const string SectionName = "FrankfurterApi";
     public ushort HistoryCacheExpiryHours { get; set; } = 24;
-    
     public required string BaseUrl { get; set; }
 }
 
@@ -34,14 +33,12 @@ public class FrankfurterExchangeRateProvider : IExchangeRateProvider
     public async Task<ExchangeRate> GetLatestAsync
         (string baseCurrency, CancellationToken cancellationToken = default)
     {
-        //we do not try to get exchange rate from cache because there is no guarantee
-        // there is no new exchange rate available in API
+        //we do not cache this because we don't know when
+        //the new exchange rate will be available in the API,
+        //hence we don't know when to invalidate the cache
         var apiResponse = 
             await _apiClient.GetLatestExchangeRatesAsync(baseCurrency, cancellationToken);
 
-        var cacheKey = CreateHistoryCacheKey(baseCurrency, apiResponse.Date);
-        
-        await _redisStorage.SetAsync(cacheKey, apiResponse.Rates, _historyCacheExpiry);
         
         return new ExchangeRate(apiResponse.Date, apiResponse.Rates);
     }
@@ -64,61 +61,51 @@ public class FrankfurterExchangeRateProvider : IExchangeRateProvider
     }
 
     public async Task<ExchangeRateHistory> GetHistoryAsync(
-        string baseCurrency, 
-        string startDate, 
-        string endDate, 
+        string baseCurrency,
+        string startDate,
+        string endDate,
+        PaginationOptions? paginationOptions = null,
         CancellationToken cancellationToken = default)
     {
-        var endDateTime = DateTime.Parse(endDate);
-        var nonCachedDatesSegment = new List<string> ();
-        var resultExchangeRates = new List<ExchangeRate>();
+        var cacheKey = CreateHistoryCacheKey(baseCurrency, startDate, endDate);
         
-        for (var dateTime = DateTime.Parse(startDate);
-            dateTime <= endDateTime; 
-            dateTime = dateTime.AddDays(1))
+        var cachedExchangeRates = 
+            await _redisStorage.GetManyAsync<ExchangeRate>(cacheKey, paginationOptions);
+
+        if (cachedExchangeRates is not null && cachedExchangeRates.Value.values.Length > 0)
         {
-            var dateString = dateTime.ToString("yyyy-MM-dd");
-            var cacheKey = CreateHistoryCacheKey(baseCurrency, dateString);
-
-            var cachedExchangeRate = 
-                await _redisStorage.GetAsync<Dictionary<string, decimal>>(cacheKey);
-
-            if (cachedExchangeRate is not null && nonCachedDatesSegment.Count > 1)
-            {
-                var exchangeRatesFromApi = await GetExchangeRatesFromApi(
-                    baseCurrency, 
-                    nonCachedDatesSegment.First(), 
-                    nonCachedDatesSegment.Last(), 
-                    cancellationToken);
-                
-                resultExchangeRates.AddRange(exchangeRatesFromApi);
-                
-                resultExchangeRates.Add(new ExchangeRate(dateString, cachedExchangeRate));
-                
-                nonCachedDatesSegment.Clear();
-            }
-            else
-            {
-                nonCachedDatesSegment.Add(dateString);
-            }
-
-            if (dateTime == endDateTime && nonCachedDatesSegment.Count > 0)
-            {
-                var exchangeRatesFromApi = await GetExchangeRatesFromApi(
-                    baseCurrency, 
-                    nonCachedDatesSegment.First(), 
-                    nonCachedDatesSegment.Last(), 
-                    cancellationToken);
-                
-                resultExchangeRates.AddRange(exchangeRatesFromApi);
-            }
+            return new ExchangeRateHistory(
+                startDate, 
+                endDate, 
+                cachedExchangeRates.Value.values, 
+                cachedExchangeRates.Value.paginationInfo);
         }
         
-        return new ExchangeRateHistory(startDate, endDate, resultExchangeRates);
+        var exchangeRatesFromApi = await GetExchangeRatesFromApi
+            (baseCurrency, startDate, endDate, cancellationToken);
+        
+        var totalPageCount = await _redisStorage.SaveManyAsync
+            (cacheKey, exchangeRatesFromApi, paginationOptions, _historyCacheExpiry);
+        
+        paginationOptions ??= 
+            new PaginationOptions(1, (ushort) exchangeRatesFromApi.Count);
+        
+        var requestedPageValues = 
+            PaginationHelper.GetPage(exchangeRatesFromApi, paginationOptions);
+        
+        var paginationInfo = new PaginationInfo(
+            paginationOptions.PageNumber, 
+            CurrentPageSize: (ushort) requestedPageValues.Length, 
+            PageCountTotal: (ushort) totalPageCount);
 
+        return new ExchangeRateHistory(
+            startDate,
+            endDate,
+            requestedPageValues,
+            paginationInfo);
     }
 
-    private async Task<IEnumerable<ExchangeRate>> GetExchangeRatesFromApi(
+    private async Task<IReadOnlyCollection<ExchangeRate>> GetExchangeRatesFromApi(
         string baseCurrency, 
         string startDate, 
         string endDate, 
@@ -127,39 +114,16 @@ public class FrankfurterExchangeRateProvider : IExchangeRateProvider
         var apiResponse = await _apiClient.GetHistoricalRatesAsync
             (startDate, endDate, baseCurrency, cancellationToken);
 
-        await SaveApiResponseToCacheAsync(apiResponse);
 
         return apiResponse.Rates
-            .Select(rate => new ExchangeRate(rate.Key, rate.Value));
-    }
-
-    private ExchangeRateHistory ConvertToDomainModel(HistoricalRatesFrankfurterApiResponse apiResponse)
-    {
-        var exchangeRates = apiResponse.Rates
-            .Select(rates => new ExchangeRate(rates.Key, rates.Value))
+            .Select(rate => new ExchangeRate(rate.Key, rate.Value))
             .ToArray();
-
-        return new ExchangeRateHistory(apiResponse.StartDate, apiResponse.EndDate, exchangeRates);
     }
     
-    private Task SaveApiResponseToCacheAsync(HistoricalRatesFrankfurterApiResponse apiResponse)
-    {
-        return Task.WhenAll(apiResponse.Rates.Keys.Select(date =>
-        {
-            var cacheKey = CreateHistoryCacheKey(apiResponse.Base, date);
-            return _redisStorage.SetAsync(cacheKey, apiResponse.Rates[date], _historyCacheExpiry);
-        }));
-    }
-    
-    private string CreateHistoryCacheKey(string baseCurrency, string dateString)
-    {
-        return Id + "_" + baseCurrency + "_" + dateString;
-    }
 
-    private (string id, string baseCurrency, string date) DeconstructHistoryCacheKey(string key)
-    {
-        var keySegments = key.Split("_");
-        return (keySegments[0], keySegments[1], keySegments[2]);
-    }
-
+    private string CreateHistoryCacheKey(
+        string baseCurrency, 
+        string startDate, 
+        string endDate) =>
+        $"{Id}_{baseCurrency}_{startDate}..{endDate}";
 }

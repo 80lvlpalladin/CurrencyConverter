@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
-namespace CurrencyConverter.Api;
+namespace CurrencyConverter.Api.Application;
 
 public class GlobalExceptionHandler(CurrentEnvironment environment, ILogger<GlobalExceptionHandler> logger)
     : IExceptionHandler

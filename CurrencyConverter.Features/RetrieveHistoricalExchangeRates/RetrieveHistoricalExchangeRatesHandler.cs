@@ -1,6 +1,4 @@
-using System.Globalization;
 using CurrencyConverter.Domain;
-using CurrencyConverter.Features.RetrieveLatestExchangeRates;
 using ErrorOr;
 using FluentValidation;
 using MediatR;
@@ -12,10 +10,7 @@ public sealed record RetrieveHistoricalExchangeRatesRequest(
     string StartDate,
     string EndDate,
     string? ExchangeRateProviderId,
-    ResponsePaginationOptions? PaginationOptions) : IRequest<ErrorOr<RetrieveHistoricalExchangeRatesResponse>>;
-
-public sealed record ResponsePaginationOptions
-    (ushort PageNumber, ushort PageCount);
+    PaginationOptions? PaginationOptions) : IRequest<ErrorOr<RetrieveHistoricalExchangeRatesResponse>>;
 
 public sealed record RetrieveHistoricalExchangeRatesResponse(
     string ExchangeRateProvider,
@@ -23,8 +18,7 @@ public sealed record RetrieveHistoricalExchangeRatesResponse(
     string StartDate,
     string EndDate,
     Dictionary<string, Dictionary<string, decimal>> Rates,
-    ushort PageNumber,
-    int PageCount);
+    PaginationInfo PaginationInfo);
 
 public class RetrieveHistoricalExchangeRatesHandler(ExchangeRateProviderFactory exchangeRateProviderFactory)
     : IRequestHandler<RetrieveHistoricalExchangeRatesRequest, ErrorOr<RetrieveHistoricalExchangeRatesResponse>>
@@ -41,101 +35,25 @@ public class RetrieveHistoricalExchangeRatesHandler(ExchangeRateProviderFactory 
         var exchangeRateProvider = 
             exchangeRateProviderFactory.GetProvider(request.ExchangeRateProviderId);
 
-        PaginatedDateSegment dateSegment;
-
-        if (request.PaginationOptions is not null)
-        {
-            var errorOr = GetDateSegmentForPage(
-                request.StartDate, 
-                request.EndDate, 
-                request.PaginationOptions);
-            
-            if(errorOr.IsError)
-                return errorOr.FirstError;
-
-            dateSegment = errorOr.Value;
-        }
-        else
-        {
-            dateSegment = new PaginatedDateSegment(
-                1,
-                1,
-                request.StartDate, 
-                request.EndDate);
-        }
-        
-        
         var exchangeRateHistory = await exchangeRateProvider.GetHistoryAsync(
-            request.BaseCurrency, 
-            dateSegment.StartDate,
-            dateSegment.EndDate,
+            request.BaseCurrency,
+            request.StartDate,
+            request.EndDate,
+            request.PaginationOptions,
             cancellationToken);
+
+        var responseExchangeRates = exchangeRateHistory.Rates
+            .ToDictionary(rate => rate.Date, rate => rate.Rates);
         
         return new RetrieveHistoricalExchangeRatesResponse(
             exchangeRateProvider.Id,
             request.BaseCurrency,
             request.StartDate,
             request.EndDate,
-            Rates: exchangeRateHistory.Rates
-                .ToDictionary(rate => rate.Date, rate => rate.Rates),
-            dateSegment.PageNumber,
-            dateSegment.PageCount);
+            responseExchangeRates,
+            exchangeRateHistory.PaginationInfo);
     }
-
-    private sealed record PaginatedDateSegment(
-        ushort PageNumber, ushort PageCount, string StartDate, string EndDate);
     
-    private ErrorOr<PaginatedDateSegment> GetDateSegmentForPage(
-            string startDate, string endDate, ResponsePaginationOptions paginationOptions)
-    {
-        var endDateTime = DateTime.Parse(endDate);
-        var dateTime = DateTime.Parse(startDate);
-        
-        var totalDaysInRange = (endDateTime - dateTime).TotalDays + 1;
-        
-        if(totalDaysInRange % paginationOptions.PageCount != 0)
-            return Error.Validation(description:"Total days in range must be divisible by page count.");
-        
-        var pageSize = (ushort) Math.Max(1, totalDaysInRange / paginationOptions.PageCount);
-
-        //if (pageSize == 0) // means that desired page count is higher than number of days in date range
-        //{
-        //    return new PaginatedDateSegment(1, 1, startDate, endDate);
-        //}
-        
-        var resultsOnPageCounter = 1;
-        ushort currentPageNumber = 1;
-        
-        var currentSegmentStartDate = string.Empty;
-        
-        while (dateTime <= endDateTime)
-        {
-            if (resultsOnPageCounter == 1)
-            {
-                currentSegmentStartDate = $"{dateTime:yyyy-MM-dd}";
-            }
-            
-            if (resultsOnPageCounter == pageSize)
-            {
-                if(currentPageNumber == paginationOptions.PageNumber)
-                    return new PaginatedDateSegment(
-                        currentPageNumber,
-                        paginationOptions.PageCount,
-                        currentSegmentStartDate, 
-                        dateTime.ToString("yyyy-MM-dd"));
-                
-                resultsOnPageCounter = 0;
-                currentPageNumber++;
-            }
-            
-            dateTime = dateTime.AddDays(1);
-            resultsOnPageCounter++;
-        }
-        
-        return Error.Failure(
-            description:$"Page number {paginationOptions.PageNumber} is out of range for the given date range.");
-    }
-
     private sealed class RetrieveHistoricalExchangeRatesRequestValidator
         : AbstractValidator<RetrieveHistoricalExchangeRatesRequest>
     {
@@ -158,7 +76,7 @@ public class RetrieveHistoricalExchangeRatesHandler(ExchangeRateProviderFactory 
 
             RuleFor(x => x.PaginationOptions)
                 .Must(po => 
-                    po is null || (po.PageNumber > 0 && po.PageCount > 1 && po.PageNumber <= po.PageCount))
+                    po is null || (po is { PageNumber: > 0, MaxPageSize: > 1 } && po.PageNumber <= po.MaxPageSize))
                 .WithMessage("Pagination options is not valid.");
             
             RuleFor(x => x)

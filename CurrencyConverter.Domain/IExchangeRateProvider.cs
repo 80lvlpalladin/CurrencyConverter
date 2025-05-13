@@ -13,7 +13,8 @@ public interface IExchangeRateProvider
     /// <param name="baseCurrency">The base currency for which the exchange rate is to be retrieved (e.g., USD).</param>
     /// <param name="cancellationToken"></param>
     /// <returns>A task that represents the asynchronous operation, containing the latest exchange rate information.</returns>
-    public Task<ExchangeRate> GetLatestAsync(string baseCurrency, CancellationToken cancellationToken = default);
+    public Task<ExchangeRate> GetLatestAsync
+        (string baseCurrency, CancellationToken cancellationToken = default);
     
     /// <summary>
     /// Asynchronously converts an amount from the specified base currency to the target currency using the current exchange rate.
@@ -22,14 +23,23 @@ public interface IExchangeRateProvider
     /// <param name="amount">The amount to be converted in the base currency.</param>
     /// <param name="targetCurrency">The currency to which the amount is to be converted (e.g., EUR).</param>
     /// <returns>A task that represents the asynchronous operation, containing the converted amount in the target currency.</returns>
-    public Task<decimal> ConvertAsync(string baseCurrency, decimal amount, string targetCurrency, CancellationToken cancellationToken = default);
+    public Task<decimal> ConvertAsync(
+        string baseCurrency, 
+        decimal amount, 
+        string targetCurrency, 
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Asynchronously retrieves the historical exchange rates for the specified base currency against all available currencies.
     /// </summary>
     /// <param name="baseCurrency">The base currency for which the historical exchange rates are to be retrieved (e.g., USD).</param>
     /// <returns>A task that represents the asynchronous operation, containing the historical exchange rate information.</returns>
-    public Task<ExchangeRateHistory> GetHistoryAsync(string baseCurrency, string startDate, string endDate, CancellationToken cancellationToken = default);
+    public Task<ExchangeRateHistory> GetHistoryAsync(
+        string baseCurrency, 
+        string startDate, 
+        string endDate, 
+        PaginationOptions? paginationOptions = null, 
+        CancellationToken cancellationToken = default);
 }
 
     

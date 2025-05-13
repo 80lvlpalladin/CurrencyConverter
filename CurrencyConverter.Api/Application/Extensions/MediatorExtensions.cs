@@ -1,7 +1,7 @@
 using ErrorOr;
 using MediatR;
 
-namespace CurrencyConverter.Api.Extensions;
+namespace CurrencyConverter.Api.Application.Extensions;
 
 public static class MediatorExtensions
 {

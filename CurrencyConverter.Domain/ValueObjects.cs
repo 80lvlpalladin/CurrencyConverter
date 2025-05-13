@@ -12,5 +12,17 @@ public sealed record ConversionResult(
 public sealed record ExchangeRateHistory(
     string StartDate, 
     string EndDate, 
-    IReadOnlyCollection<ExchangeRate> Rates);
+    IReadOnlyCollection<ExchangeRate> Rates,
+    PaginationInfo PaginationInfo);
+
+public sealed record PaginationOptions(
+    ushort PageNumber, 
+    ushort MaxPageSize);
+
+public sealed record PaginationInfo(
+    ushort CurrentPageNumber,
+    ushort CurrentPageSize,
+    ushort PageCountTotal);
+
+
     

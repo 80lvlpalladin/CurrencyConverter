@@ -1,4 +1,4 @@
-namespace CurrencyConverter.Api;
+namespace CurrencyConverter.Api.Application;
 
 // ReSharper disable once ClassNeverInstantiated.Global
 public partial class GlobalLogger

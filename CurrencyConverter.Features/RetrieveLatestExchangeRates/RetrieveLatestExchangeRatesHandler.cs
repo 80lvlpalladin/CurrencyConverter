@@ -6,7 +6,8 @@ using Microsoft.Extensions.Logging;
 
 namespace CurrencyConverter.Features.RetrieveLatestExchangeRates;
 
-public sealed record RetrieveLatestExchangeRatesRequest(string BaseCurrency, string? ExchangeRateProviderId) : 
+public sealed record RetrieveLatestExchangeRatesRequest
+    (string BaseCurrency, string? ExchangeRateProviderId) : 
     IRequest<ErrorOr<RetrieveLatestExchangeRatesResponse>>;
 
 public sealed record RetrieveLatestExchangeRatesResponse

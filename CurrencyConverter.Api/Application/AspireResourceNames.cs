@@ -1,4 +1,4 @@
-namespace CurrencyConverter.Api;
+namespace CurrencyConverter.Api.Application;
 
 public class AspireResourceNames
 {

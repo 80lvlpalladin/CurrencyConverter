@@ -4,7 +4,7 @@ using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 
-namespace CurrencyConverter.Api.Extensions;
+namespace CurrencyConverter.Api.Application.Extensions;
 
 public static class WebApplicationBuilderExtensions
 {

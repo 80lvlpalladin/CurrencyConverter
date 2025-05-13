@@ -1,4 +1,5 @@
 using System.Reflection;
+using CurrencyConverter.Api.Application;
 using CurrencyConverter.Domain;
 using CurrencyConverter.Features.ConvertCurrency;
 using CurrencyConverter.Features.RetrieveLatestExchangeRates;
@@ -6,6 +7,7 @@ using CurrencyConverter.Infrastructure;
 using CurrencyConverter.Infrastructure.Clients;
 using CurrencyConverter.Infrastructure.ExchangeRateProviders;
 using Refit;
+using Microsoft.Extensions.Resilience;
 
 namespace CurrencyConverter.Api;
 
@@ -21,7 +23,9 @@ public static class ServiceRegistrant
         (this IServiceCollection services, IConfiguration configuration)
     {
         return services
-            .AddFrankfurterApiExchangeRateProvider(configuration);
+            .AddFrankfurterApiExchangeRateProvider(configuration)
+            //example of how to register another exchange rate provider
+            .AddSingleton<IExchangeRateProvider, TestProvider>(); 
     }
     
     public static IServiceCollection AddFeaturesLayer(this IServiceCollection services, IConfiguration configuration)
@@ -46,7 +50,8 @@ public static class ServiceRegistrant
         services
             .AddRefitClient<IFrankfurterApiClient>()
             .ConfigureHttpClient(client => 
-                client.BaseAddress = new Uri(optionsSection.Get<FrankfurterApiOptions>()!.BaseUrl));
+                client.BaseAddress = new Uri(optionsSection.Get<FrankfurterApiOptions>()!.BaseUrl))
+            .AddStandardResilienceHandler();
         
         var historyCacheConnectionString =
             configuration.GetConnectionString(AspireResourceNames.ExchangeRateHistoryCache);

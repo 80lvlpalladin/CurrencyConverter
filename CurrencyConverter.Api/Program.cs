@@ -1,5 +1,6 @@
 using CurrencyConverter.Api;
-using CurrencyConverter.Api.Extensions;
+using CurrencyConverter.Api.Application;
+using CurrencyConverter.Api.Application.Extensions;
 using Scalar.AspNetCore;
 
 var currentEnvironment = new CurrentEnvironment();
